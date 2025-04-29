@@ -6,7 +6,7 @@ pipeline {
         stage('Git checkout') {
             steps {
                 // Get some code from a GitHub repository
-                git 'https://github.com/betawins/Trading-UI.git'
+                git 'https://github.com/RameshDumala1/Trading-UI.git'
                    }
 }
         stage('Install npm prerequisites'){
