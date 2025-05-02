@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'Node23'  // Ensure this matches your Global Tool Configuration
+        nodejs 'Node23'  // Make sure this is configured in Jenkins global tools
     }
 
     environment {
@@ -16,28 +16,25 @@ pipeline {
                 git 'https://github.com/betawins/docker-tasks.git'
             }
         }
-        stage('Install Node.js and npm (Amazon Linux / RHEL)') {
-            steps {
-                sh '''
-                    curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION} | sudo bash -
-                    sudo yum install -y nodejs
-                '''
-            }
-        }
+
         stage('Install dependencies & build') {
             steps {
-                sh 'npm install'
+                dir('trading-ui') {
+                    sh 'npm install'
+                }
             }
         }
+
         stage('Run with PM2') {
             steps {
-                sh '''
-                    sudo npm install -g pm2
-                    pm2 start app.js || true
-                '''
+                dir('trading-ui') {
+                    sh '''
+                        sudo npm install -g pm2
+                        pm2 start app.js || true
+                    '''
+                }
             }
         }
-    }
 
         stage('Docker Build') {
             steps {
