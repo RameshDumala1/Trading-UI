@@ -1,64 +1,62 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs "Node23" // Make sure this matches your Jenkins NodeJS installation name
+    }
+
     environment {
         IMAGE_NAME = 'dumalaramesh/nodejs-trading-ui:latest'
     }
 
-    tools {
-        nodejs 'Node23' // Make sure this matches your Jenkins NodeJS config
-    }
-
     stages {
-        stage('Install dependencies') {
+        stage('Install Dependencies') {
             steps {
+                echo '📦 Installing dependencies...'
                 sh 'npm install'
             }
         }
 
-        stage('Run with PM2') {
+        stage('Build Application') {
             steps {
-                sh '''
-                    sudo npm install -g pm2
-                    pm2 start app.js || true
-                '''
+                echo '🏗️ Building the app...'
+                sh 'npm run build'
             }
         }
 
         stage('Docker Build') {
             steps {
                 echo '🐳 Building Docker image...'
-                sh 'docker build -t $IMAGE_NAME .'
+                sh "docker build -t $IMAGE_NAME ."
             }
         }
 
         stage('Docker Push') {
             steps {
-                withDockerRegistry(credentialsId: 'dockerhub', url: '') {
-                    sh 'docker push $IMAGE_NAME'
+                echo '📤 Pushing Docker image...'
+                withCredentials([string(credentialsId: 'docker-hub-credentials', variable: 'DOCKER_TOKEN')]) {
+                    sh '''
+                        echo "$DOCKER_TOKEN" | docker login -u dumalaramesh --password-stdin
+                        docker push $IMAGE_NAME
+                    '''
                 }
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh 'docker run -d -p 3000:3000 $IMAGE_NAME'
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                sh 'docker system prune -f'
+                echo '🚀 Deploying container...'
+                // Add your deployment script here (e.g., Docker run or Kubernetes apply)
             }
         }
     }
 
     post {
         failure {
-            echo '❌ Pipeline failed.'
+            echo '❌ Pipeline failed!'
         }
         success {
-            echo '✅ Pipeline succeeded.'
+            echo '✅ Pipeline completed successfully!'
         }
     }
 }
