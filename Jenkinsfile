@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'dumalaramesh/trading-ui'
+        DOCKER_IMAGE = "dumalaramesh/trading-ui:${BUILD_NUMBER}"
         DOCKER_CREDENTIALS = 'docker-hub-credentials'
     }
 
@@ -15,7 +15,13 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh '''
+                    # Install Node.js and npm on Amazon Linux 2023
+                    sudo dnf install -y nodejs
+                    node -v
+                    npm -v
+                    npm install
+                '''
             }
         }
 
@@ -46,8 +52,14 @@ pipeline {
             steps {
                 sh '''
                     docker rm -f trading-ui || true
-                    docker run -d --name trading-ui -p 3000:3000 $DOCKER_IMAGE
+                    docker run -d --name trading-ui --restart always -p 3000:3000 $DOCKER_IMAGE
                 '''
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh 'docker image prune -f'
             }
         }
     }
