@@ -1,5 +1,7 @@
-# Use Node.js base image
 FROM node:18-alpine
+
+# Install serve globally
+RUN npm install -g serve
 
 # Create app directory
 WORKDIR /app
@@ -11,9 +13,9 @@ RUN npm install
 # Copy rest of the app
 COPY . .
 
-# Build static files (if using React/Vite/etc)
+# Build the React/Vite app
 RUN npm run build
 
-# Expose port and run
+# Expose port and serve the app
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["serve", "-s", "dist", "-l", "3000"]
