@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = 'rameshtrader/nodejs-trading-ui:latest'
+        IMAGE_NAME = 'dumalaramesh/nodejs-trading-ui:latest'
     }
 
     stages {
