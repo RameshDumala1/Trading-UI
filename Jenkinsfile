@@ -2,47 +2,52 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "dumalaramesh/trading-ui:${BUILD_NUMBER}"
-        DOCKER_CREDENTIALS = 'docker-hub-credentials'
+        DOCKER_IMAGE = 'rameshdumala/trading-ui'
+        DOCKER_TAG = "latest"
     }
 
     stages {
-        stage('Git Clone') {
+        stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/RameshDumala1/Trading-UI.git', branch: 'master'
+                git branch: 'master', url: 'https://github.com/RameshDumala1/Trading-UI.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    # Install Node.js and npm on Amazon Linux 2023
-                    sudo dnf install -y nodejs
-                    node -v
-                    npm -v
+                    echo "Installing Node.js and dependencies..."
+                    sudo dnf install -y nodejs || true
                     npm install
+                    npm install bootstrap
                 '''
             }
         }
 
         stage('Build App') {
             steps {
-                sh 'npm run build'
+                sh '''
+                    echo "Building React App..."
+                    npm run build
+                '''
             }
         }
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                sh '''
+                    echo "Building Docker Image..."
+                    docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
+                '''
             }
         }
 
         stage('Docker Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([string(credentialsId: 'docker-hub-credentials', variable: 'DOCKER_HUB_PASSWORD')]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $DOCKER_IMAGE
+                        echo "$DOCKER_HUB_PASSWORD" | docker login -u rameshdumala --password-stdin
+                        docker push $DOCKER_IMAGE:$DOCKER_TAG
                     '''
                 }
             }
@@ -51,8 +56,10 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 sh '''
-                    docker rm -f trading-ui || true
-                    docker run -d --name trading-ui --restart always -p 3000:3000 $DOCKER_IMAGE
+                    echo "Deploying Docker Container..."
+                    docker stop trading-ui || true
+                    docker rm trading-ui || true
+                    docker run -d --name trading-ui -p 3000:3000 $DOCKER_IMAGE:$DOCKER_TAG
                 '''
             }
         }
@@ -65,11 +72,11 @@ pipeline {
     }
 
     post {
-        success {
-            echo '✅ CI/CD pipeline completed successfully.'
-        }
         failure {
             echo '❌ Pipeline failed.'
+        }
+        success {
+            echo '✅ Pipeline succeeded.'
         }
     }
 }
