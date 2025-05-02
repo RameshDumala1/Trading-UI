@@ -16,26 +16,28 @@ pipeline {
                 git 'https://github.com/betawins/docker-tasks.git'
             }
         }
-
-        stage('Install Dependencies') {
+        stage('Install Node.js and npm (Amazon Linux / RHEL)') {
             steps {
-                echo '📦 Installing Node.js dependencies...'
-                dir('trading-ui') {
-                    sh 'npm install'
-                    sh 'npm install bootstrap'
-                    sh 'npm install react-router-dom'
-                }
+                sh '''
+                    curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION} | sudo bash -
+                    sudo yum install -y nodejs
+                '''
             }
         }
-
-        stage('Build App') {
+        stage('Install dependencies & build') {
             steps {
-                echo '🏗️ Building React App...'
-                dir('trading-ui') {
-                    sh 'npm run build'
-                }
+                sh 'npm install'
             }
         }
+        stage('Run with PM2') {
+            steps {
+                sh '''
+                    sudo npm install -g pm2
+                    pm2 start app.js || true
+                '''
+            }
+        }
+    }
 
         stage('Docker Build') {
             steps {
