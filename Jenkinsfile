@@ -1,82 +1,83 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'Node18'  // Ensure this matches your Global Tool Configuration
+    }
+
     environment {
-        DOCKER_IMAGE = 'rameshdumala/trading-ui'
-        DOCKER_TAG = "latest"
+        IMAGE_NAME = 'rameshtrader/nodejs-trading-ui:latest'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'master', url: 'https://github.com/RameshDumala1/Trading-UI.git'
+                echo '📥 Checking out source code...'
+                git 'https://github.com/betawins/docker-tasks.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                    echo "Installing Node.js and dependencies..."
-                    sudo dnf install -y nodejs || true
-                    npm install
-                    npm install bootstrap
-                '''
+                echo '📦 Installing Node.js dependencies...'
+                dir('trading-ui') {
+                    sh 'npm install'
+                    sh 'npm install bootstrap'
+                    sh 'npm install react-router-dom'
+                }
             }
         }
 
         stage('Build App') {
             steps {
-                sh '''
-                    echo "Building React App..."
-                    npm run build
-                '''
+                echo '🏗️ Building React App...'
+                dir('trading-ui') {
+                    sh 'npm run build'
+                }
             }
         }
 
         stage('Docker Build') {
             steps {
-                sh '''
-                    echo "Building Docker Image..."
-                    docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
-                '''
+                echo '🐳 Building Docker image...'
+                dir('trading-ui') {
+                    sh 'docker build -t $IMAGE_NAME .'
+                }
             }
         }
 
         stage('Docker Push') {
             steps {
-                withCredentials([string(credentialsId: 'docker-hub-credentials', variable: 'DOCKER_HUB_PASSWORD')]) {
-                    sh '''
-                        echo "$DOCKER_HUB_PASSWORD" | docker login -u rameshdumala --password-stdin
-                        docker push $DOCKER_IMAGE:$DOCKER_TAG
-                    '''
+                echo '📤 Pushing Docker image to DockerHub...'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh 'docker push $IMAGE_NAME'
                 }
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh '''
-                    echo "Deploying Docker Container..."
-                    docker stop trading-ui || true
-                    docker rm trading-ui || true
-                    docker run -d --name trading-ui -p 3000:3000 $DOCKER_IMAGE:$DOCKER_TAG
-                '''
+                echo '🚀 Running Docker container...'
+                sh 'docker rm -f trading-ui || true'
+                sh 'docker run -d --name trading-ui -p 3000:3000 $IMAGE_NAME'
             }
         }
 
         stage('Cleanup') {
             steps {
-                sh 'docker image prune -f'
+                echo '🧹 Cleaning up workspace...'
+                cleanWs()
             }
         }
     }
 
     post {
+        success {
+            echo '✅ Pipeline completed successfully!'
+        }
         failure {
             echo '❌ Pipeline failed.'
-        }
-        success {
-            echo '✅ Pipeline succeeded.'
         }
     }
 }
