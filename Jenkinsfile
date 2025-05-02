@@ -1,34 +1,63 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_IMAGE = 'dumalaramesh/trading-ui'
+        DOCKER_CREDENTIALS = 'docker-hub-credentials'
+    }
+
     stages {
-        stage('Git checkout') {
+        stage('Git Clone') {
             steps {
-                // Clone your GitHub repository
-                git 'https://github.com/RameshDumala1/Trading-UI.git'
+                git url: 'https://github.com/RameshDumala1/Trading-UI.git', branch: 'master'
             }
         }
 
-        stage('Install npm prerequisites') {
+        stage('Install Dependencies') {
             steps {
-                // Run npm audit, but don't fail the build if it finds vulnerabilities
-                sh 'npm audit || echo "Vulnerabilities found, continuing..."'
-
-                // Optionally try to fix vulnerabilities without breaking changes
-                sh 'npm audit fix || true'
-
-                // Install dependencies
                 sh 'npm install'
+            }
+        }
 
-                // Build the application
+        stage('Build App') {
+            steps {
                 sh 'npm run build'
+            }
+        }
 
-                // Start the app using PM2
+        stage('Docker Build') {
+            steps {
+                sh 'docker build -t $DOCKER_IMAGE .'
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push $DOCKER_IMAGE
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
                 sh '''
-                    cd build
-                    pm2 --name Trading-UI start npm -- start
+                    docker rm -f trading-ui || true
+                    docker run -d --name trading-ui -p 3000:3000 $DOCKER_IMAGE
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ CI/CD pipeline completed successfully.'
+        }
+        failure {
+            echo '❌ Pipeline failed.'
         }
     }
 }
